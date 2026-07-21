@@ -58,7 +58,7 @@ async def deleteUser(session: SessionDep, currentUser: str = Depends(get_current
 
 
 @router.post('/verify', status_code = 200)
-async def verifyUser(requestData: user_model.VerificationModel):
-    return await get_current_user(requestData.access_token)
+async def verifyUser():
+    return await get_current_user()
 
 

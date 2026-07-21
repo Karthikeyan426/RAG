@@ -3,7 +3,7 @@ from database_config import SessionDep
 from chats.models import question_model
 from database_schema import chats, docs
 from sentence_transformers import SentenceTransformer
-from sqlmodel import text
+from sqlmodel import select, text
 from config import settings
 from groq import Groq
 from auth.current_user_extraction import get_current_user
@@ -116,3 +116,13 @@ async def getChat(chat_id: str, session: SessionDep, currentUser: str = Depends(
             raise HTTPException(status_code = 401, detail = "unauthorized chat")
         
     return {"chat_q": chat.question_content, "chat_a": chat.response_content}
+
+@router.get("/doc/{doc_id}", status_code = 200)
+async def getChats(doc_id: str, session: SessionDep, currentUser: str = Depends(get_current_user)):
+    chatList = session.exec(
+        select(chats).where(chats.doc_id == doc_id)
+    ).all()
+    if not chatList:
+        raise HTTPException(status_code = 404, detail = "chats not found")
+    else:
+        return {"chats": chatList}

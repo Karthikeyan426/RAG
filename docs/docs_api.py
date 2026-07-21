@@ -6,6 +6,7 @@ from database_schema import docs, chunks
 from docs.helpers import doc_embedding_coversion, doc_text_extraction
 from embedding_model import model
 from config import settings
+from sqlmodel import select
 
 router = APIRouter(prefix="/users/user/docs", tags=["docs"])
 
@@ -42,7 +43,7 @@ async def uploadDoc(session: SessionDep, currentUser: str = Depends(get_current_
                 )
            session.add_all(objs)
            session.commit()
-       return {"message": "document uploaded"}
+       return {"message": "document uploaded", "doc_id": doc.id}
 
        
        
@@ -64,14 +65,14 @@ async def deleteDoc(doc_id: str, session: SessionDep, currentUser: str = Depends
 @router.post("",status_code = 200)
 async def getUserDocs(session: SessionDep, currentUser: str = Depends(get_current_user)):
     user_id = currentUser
-    docs = session.get(docs, user_id)
-    if not docs:
-        return {
-            "docs_exists": False
-        }
+    docsList = session.exec(
+        select(docs).where(docs.user_id == user_id)
+    ).all()
+
+    if not docsList:
+        raise HTTPException(status_code = 404, detail = "documents not found")
     else:
         return {
-            "docs_exists": True,
-            "docs": docs
+            "docs": docsList
         }
 
