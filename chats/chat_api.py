@@ -12,7 +12,7 @@ from embedding_model import model
 router = APIRouter(prefix='/users/user/chats', tags=['chats'])
 
 @router.post('/query', status_code = 200)
-async def processEnquery(requestData: question_model.QModel, session: SessionDep, currentUser: str = Depends(get_current_user)):
+async def processQuery(requestData: question_model.QModel, session: SessionDep, currentUser: str = Depends(get_current_user)):
     id = requestData.doc_id
     doc: docs = session.get(docs, requestData.doc_id)
     if not doc:
@@ -27,7 +27,7 @@ async def processEnquery(requestData: question_model.QModel, session: SessionDep
         text("""
             SELECT response_content
             FROM chats
-            WHERE 1 - (question_embedding <=> CAST(:q_embedding AS vector)) > 0.90
+            WHERE 1 - (question_embedding <=> CAST(:q_embedding AS vector)) > 0.80
             ORDER BY question_embedding <=> CAST(:q_embedding AS vector)
             LIMIT 1
         """),
@@ -43,7 +43,13 @@ async def processEnquery(requestData: question_model.QModel, session: SessionDep
         )
         session.add(chat)
         session.commit()
-        return {"response": similarQ.response_content}
+        session.refresh(chat)
+        return {
+            'id': chat.id,
+            'question_content': chat.question_content,
+            'response_content': chat.response_content,
+            'queried_at': chat.queried_at
+        }
     else:
         similarChunks = session.execute(
         text("""
@@ -81,8 +87,14 @@ async def processEnquery(requestData: question_model.QModel, session: SessionDep
         )
         session.add(chat)
         session.commit()
+        session.refresh(chat)
 
-        return {"response": receivedResponse}
+        return {
+            'id': chat.id,
+            'question_content': chat.question_content,
+            'response_content': chat.response_content,
+            'queried_at': chat.queried_at
+        }
 
 
 
@@ -108,7 +120,9 @@ async def deleteChat(chat_id: str, session: SessionDep, currentUser: str = Depen
 @router.get('/{chat_id}', status_code = 200)
 async def getChat(chat_id: str, session: SessionDep, currentUser: str = Depends(get_current_user)):
     id = chat_id
-    chat = session.get(chats, id)
+    chat = session.exec(
+        select(chats.id, chats.question_content, chats.response_content, chats.queried_at).where(chats.id == id)
+    )
     if not chat:
         raise HTTPException(status_code = 404, detail = "chat not found")
     else:
@@ -120,9 +134,19 @@ async def getChat(chat_id: str, session: SessionDep, currentUser: str = Depends(
 @router.get("/doc/{doc_id}", status_code = 200)
 async def getChats(doc_id: str, session: SessionDep, currentUser: str = Depends(get_current_user)):
     chatList = session.exec(
-        select(chats).where(chats.doc_id == doc_id)
+        select(chats.id, chats.question_content, chats.queried_at).where(chats.doc_id == doc_id).order_by(chats.queried_at.desc())
     ).all()
     if not chatList:
         raise HTTPException(status_code = 404, detail = "chats not found")
     else:
-        return {"chats": chatList}
+        return chatList
+
+@router.get("/doc/recent/{doc_id}", status_code = 200)
+async def getLastFiveChats(doc_id: str, session: SessionDep, currentUser: str = Depends(get_current_user)):
+    recentChats = session.exec(
+        select(chats.id, chats.question_content, chats.queried_at).where(chats.doc_id == doc_id).order_by(chats.queried_at.desc()).limit(5)
+    )
+    if not recentChats:
+        raise HTTPException(status_code = 404, detail = "chats not found")
+    else:
+        return recentChats
