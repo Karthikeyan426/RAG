@@ -33,4 +33,4 @@ class chats(SQLModel, table = True):
     question_embedding: list[float] = Field(sa_column = Column(VECTOR(384), nullable = True))
     response_content: str = Field(nullable = False)
     doc: docs = Relationship(back_populates = 'chats') 
-    queried_at: datetime = Field(default_factory = datetime.now)
+    queried_at: datetime = Field(default_factory = datetime.now, nullable = True)

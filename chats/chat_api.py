@@ -139,14 +139,33 @@ async def getChats(doc_id: str, session: SessionDep, currentUser: str = Depends(
     if not chatList:
         raise HTTPException(status_code = 404, detail = "chats not found")
     else:
-        return chatList
+        return [
+            {
+                "id": row.id,
+                "question_content": row.question_content,
+                "queried_at": row.queried_at
+            }
+            for row in chatList
+]
 
-@router.get("/doc/recent/{doc_id}", status_code = 200)
-async def getLastFiveChats(doc_id: str, session: SessionDep, currentUser: str = Depends(get_current_user)):
+@router.get("/doc/recent/", status_code = 200)
+async def getLastFiveChats(doc_id: str, last_chat_id: str, session: SessionDep, currentUser: str = Depends(get_current_user)):
+    lastChat = session.get(chats, last_chat_id)
+    if not lastChat:
+        raise HTTPException(status_code = 402)
     recentChats = session.exec(
-        select(chats.id, chats.question_content, chats.queried_at).where(chats.doc_id == doc_id).order_by(chats.queried_at.desc()).limit(5)
-    )
+        select(chats.id, chats.question_content, chats.queried_at, chats.response_content).where((chats.doc_id == doc_id) & (chats.queried_at < lastChat.queried_at)).order_by(chats.queried_at.desc()).limit(5)
+    ).all()
     if not recentChats:
         raise HTTPException(status_code = 404, detail = "chats not found")
     else:
-        return recentChats
+        print(recentChats)
+        return [
+            {
+                "id": row.id,
+                "question_content": row.question_content,
+                "response_content": row.response_content,
+                "queried_at": row.queried_at
+            }
+            for row in recentChats
+        ]
