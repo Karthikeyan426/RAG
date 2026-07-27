@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from sqlalchemy import insert
 from auth.current_user_extraction import get_current_user
 from database_config import SessionDep
 from docs.models import doc_model
@@ -32,17 +33,16 @@ async def uploadDoc(session: SessionDep, currentUser: str = Depends(get_current_
        )
 
        print("saving chunks")
-       objs = []
-       for chunk, embedding in zip(extracted_chunks, embeddings):
-           objs.append(
-               chunks(
-                   doc_id=doc.id,
-                   content=chunk,
-                   embedding=embedding.tolist(),
-                   )
-                )
-           session.add_all(objs)
-           session.commit()
+       chunksData = [
+                  {
+                      'doc_id': doc.id,
+                      'embedding': embedding.tolist(),
+                      'content': chunk
+                  }
+                  for chunk, embedding in zip(extracted_chunks, embeddings)
+                ]
+       session.execute(insert(chunks), chunksData)
+       session.commit()
        return {"message": "document uploaded", "doc_id": doc.id}
 
        
