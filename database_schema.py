@@ -11,7 +11,7 @@ class users(SQLModel, table = True):
 
 class docs(SQLModel, table = True):
     id: UUID = Field(primary_key = True, default_factory = uuid4)
-    doc_name: str = Field(unique = True, nullable = False)
+    doc_name: str = Field(nullable = False)
     uploaded_at: datetime = Field(default_factory = datetime.now)
     user_id: str = Field(foreign_key = "users.id")
     user: users = Relationship(back_populates = 'docs')
