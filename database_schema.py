@@ -3,15 +3,25 @@ from datetime import datetime, timezone
 from pgvector.sqlalchemy import VECTOR
 from uuid import UUID, uuid4
 from typing import Optional
-
+from enum import Enum
+import sqlalchemy as sa
 class users(SQLModel, table = True):
     id: str = Field(primary_key = True, default = None)
     password: str = Field(nullable = False)
     docs: list["docs"] = Relationship(back_populates = 'user', cascade_delete = True)
+    
+class DocStatus(str,Enum):
+    uploaded = "uploaded"
+    indexed = "indexed"
 
 class docs(SQLModel, table = True):
     id: UUID = Field(primary_key = True, default_factory = uuid4)
     doc_name: str = Field(nullable = False)
+    status: DocStatus = Field(default= DocStatus.uploaded,  sa_column=Column(
+            sa.Enum(DocStatus, name="docstatus"),
+            nullable=False,
+            default=DocStatus.uploaded
+        ))
     uploaded_at: datetime = Field(default_factory = datetime.now)
     user_id: str = Field(foreign_key = "users.id")
     user: users = Relationship(back_populates = 'docs')

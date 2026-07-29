@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from sqlalchemy import insert
+from sqlalchemy import insert,text
 from auth.current_user_extraction import get_current_user
 from database_config import SessionDep
 from docs.models import doc_model
-from database_schema import docs, chunks
+from database_schema import DocStatus, docs, chunks
 from docs.helpers import doc_embedding_coversion, doc_text_extraction
 from embedding_model import model
 from config import settings
-from sqlmodel import select
+from sqlmodel import select, update
 
 router = APIRouter(prefix="/users/user/docs", tags=["docs"])
 
@@ -41,7 +41,11 @@ async def uploadDoc(session: SessionDep, currentUser: str = Depends(get_current_
                   }
                   for chunk, embedding in zip(extracted_chunks, embeddings)
                 ]
-       session.execute(insert(chunks), chunksData)
+       session.execute(insert(chunks.__table__), chunksData)
+       session.commit()
+       session.exec(
+           update(docs).where(docs.id == doc.id ).values(status = DocStatus.indexed)
+       )
        session.commit()
        return {"message": "document uploaded", "doc_id": doc.id}
 
