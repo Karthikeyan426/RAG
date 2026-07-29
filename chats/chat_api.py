@@ -27,11 +27,11 @@ async def processQuery(requestData: question_model.QModel, session: SessionDep, 
         text("""
             SELECT response_content
             FROM chats
-            WHERE 1 - (question_embedding <=> CAST(:q_embedding AS vector)) > 0.80
+            WHERE (1 - (question_embedding <=> CAST(:q_embedding AS vector)) > 0.80) and (doc_id = :doc_id)
             ORDER BY question_embedding <=> CAST(:q_embedding AS vector)
             LIMIT 1
         """),
-        {"q_embedding": str(qEmbedding)}
+        {"q_embedding": str(qEmbedding), "doc_id": str(doc.id)}
     ).first()
 
     if similarQ:
@@ -55,10 +55,11 @@ async def processQuery(requestData: question_model.QModel, session: SessionDep, 
         text("""
             SELECT content, 1 - (embedding <=> CAST(:embedding AS vector))
             FROM chunks
+            WHERE doc_id = :doc_id
             ORDER BY embedding <=> CAST(:embedding AS vector)
             LIMIT :limit
         """),
-        {"embedding": str(qEmbedding), "limit": 5}
+        {"embedding": str(qEmbedding), "limit": 5, "doc_id": str(doc.id)}
         )
 
         context = "\n".join([chunk.content for chunk in similarChunks])
